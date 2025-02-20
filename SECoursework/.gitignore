@@ -1,0 +1,22 @@
+# Windows
+Thumbs.db
+ehthumbs.db
+
+# .NET
+bin/
+obj/
+.vs/
+.vscode/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+
+# Rider
+.idea/
+
+# Windows Installer files
+*.cab
+*.msi
+*.msm
+*.msp
