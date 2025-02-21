@@ -34,7 +34,6 @@ namespace SECoursework.Business
                 message = ProcessTweet(header, tokenised);
             }
 
-            //Store message in a Json file
             JsonProcessor.SendToJSon(message);
             return message;
         }

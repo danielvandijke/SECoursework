@@ -7,6 +7,7 @@ using SECoursework.Business.Models;
 using SECoursework.Business;
 using Newtonsoft.Json;
 using System.IO;
+using System.Windows.Markup;
 
 namespace SECoursework.Data_Layer
 {
@@ -16,17 +17,15 @@ namespace SECoursework.Data_Layer
         public static void SendToJSon(Message message)
         {
             List<Message> messages = new List<Message>();
-
-            //Get list of messages from Json, append specified message to list and send back to Json.
             messages = DeSerializeJson();
             messages.Add(message);
             string json = JsonConvert.SerializeObject(messages, Formatting.Indented);
-            File.WriteAllText("C:\\Users\\danie\\OneDrive - Edinburgh Napier University\\Year 3\\Software Engineering\\Coursework\\SECoursework\\SECoursework\\Data Layer\\message_list.json", json);
+            File.WriteAllText(@"C:\Users\danie\OneDrive\Desktop\SECoursework\SECoursework\Data Layer\message_list.json", json);
         }
 
         public static List<Message> DeSerializeJson()
         {
-            string json = File.ReadAllText("C:\\Users\\danie\\OneDrive - Edinburgh Napier University\\Year 3\\Software Engineering\\Coursework\\SECoursework\\SECoursework\\Data Layer\\message_list.json");
+            string json = File.ReadAllText(@"C:\Users\danie\OneDrive\Desktop\SECoursework\SECoursework\Data Layer\message_list.json");
             List<Message> messages;
             if(JsonConvert.DeserializeObject<List<Message>>(json) == null)
             {

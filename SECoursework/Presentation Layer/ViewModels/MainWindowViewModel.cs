@@ -12,6 +12,9 @@ using SECoursework.Presentation_Layer.Views;
 using SECoursework.Data_Layer;
 using SECoursework.Business;
 using System.IO;
+using static System.Net.WebRequestMethods;
+using System.ComponentModel.DataAnnotations;
+using System.Reflection.PortableExecutable;
 
 namespace SECoursework.Presentation_Layer.ViewModels
 {
@@ -38,6 +41,9 @@ namespace SECoursework.Presentation_Layer.ViewModels
 
         public string btnProcessText { get; set; }
         public string btnUploadText { get; set; }
+
+        private string startSequence = "***START***";
+        private string endSequence = "***END***";
 
         public MainWindowViewModel()
         {
@@ -79,75 +85,69 @@ namespace SECoursework.Presentation_Layer.ViewModels
                 return;
             }
 
-            //validate message
             bool message_validated = InputValidator.ValidateMessage(txtHeader, txtBody);
             if (!message_validated)
             {
                 return;
             }
 
-            //process message
             Message message = MessageProcessor.ProcessMessage(txtHeader, txtBody);
             UpdateViewModel(message);
         }
-        private void UploadButtonClick()
-        {
-            // Create OpenFileDialog 
-            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
 
-            // Set filter for file extension
-            dlg.DefaultExt = ".txt";
-
-            // Display OpenFileDialog by calling ShowDialog method
-            Nullable<bool> result = dlg.ShowDialog();
-
-            // Get the selected file name and process messages
-            if (result == true)
-            {
-                {
-                    List<string> lines = File.ReadAllLines(dlg.FileName).ToList();
-
-                    string header = "";
-                    int validated = 0;
-                    int failed = 0;
-                    List<string> body = new();
-                    int flag = 0;
-                    for (int i = 0; i < lines.Count; i++)
-                    {
-                        if (lines[i] == "***END***")
-                        {
-                            string joined = string.Join("\r\n", body);
-                            bool inputValidated = InputValidator.ValidateMessage(header, joined);
-                            if (inputValidated)
-                            {
-                                Message message = MessageProcessor.ProcessMessage(header, joined);
-                                UpdateViewModel(message);
-                                validated++;
-                            }
-                            else
-                            {
-                                failed++;
-                            }
-                            header = "";
-                            body.Clear();
-                            flag = 0;
-                        }
-                        if (flag == 2)
-                        {
-                            body.Add(lines[i]);
-                        }
-                        if (flag == 1)
-                        {
-                            header = lines[i];
-                            flag = 2;
-                        }
-                        if (lines[i] == "***START***")
-                        {
-                            flag = 1;
+        private void ProcessFileContents(string fileName) {
+            List<string> lines = System.IO.File.ReadAllLines(fileName).ToList();
+            int validCount = 0;
+            int failedCount = 0;
+            for(int i = 0; i < lines.Count; i++) {
+                    if (lines[i] == startSequence) {
+                        if (ExtractMessage(lines, i + 1)) {
+                            validCount++;
+                        } else {
+                            failedCount++;
                         }
                     }
-                    MessageBox.Show("Mesages successfully processed: " + validated + ", failed messages: " + failed);
                 }
+            MessageBox.Show("Mesages successfully processed: " + validCount + ", failed messages: " + failedCount);
+        }
+
+        private bool ExtractMessage(List<string> lines, int lineNum) {
+            if (lines.Count <= lineNum || lines[lineNum] == endSequence) {
+                return false;
+            }
+            string header = lines[lineNum];
+            lineNum++;
+            List<string> body_lines = new();
+            while (lineNum < lines.Count) {
+                if (lines[lineNum] == endSequence) {
+                    break;
+                }
+                body_lines.Add(lines[lineNum]);
+                lineNum++;
+            }
+            if (lineNum == lines.Count){
+                return false;
+            }
+
+            string body_joined = string.Join("\r\n", body_lines);
+            bool inputValidated = InputValidator.ValidateMessage(header, body_joined);
+            if (inputValidated) {
+                Message message = MessageProcessor.ProcessMessage(header, body_joined);
+                UpdateViewModel(message);
+                return true;
+            }
+            return false;
+        }
+
+        private void UploadButtonClick()
+        {
+            Microsoft.Win32.OpenFileDialog dlg = new() {
+                DefaultExt = ".txt"
+            };
+            Nullable<bool> result = dlg.ShowDialog();
+            if (result == true)
+            {
+                ProcessFileContents(dlg.FileName);
             }
         }
         
