@@ -16,128 +16,108 @@ namespace SECoursework.Business
         public static List<string> SIRList = new();
         public static Dictionary<string, int> TrendingList = new();
         public static List<string> Mentions = new();
+        private string id = "";
+        private string sender = "";
+        private List<string> messageBody = new();
 
-        public static Message ProcessMessage(string header, string body)
+        public Message ProcessMessage(string header, string body)
         {
             Message message = new Message();
-            List<string> tokenised = Helper.TokeniseOnLines(body);
+            this.messageBody = Helper.TokeniseOnLines(body);
             char messageTypeIdentifier = header[0];
-            string id = header[1..];
-            string sender = tokenised[0];
-            tokenised.Remove(tokenised[0]);
+            this.id = header[1..];
+            this.sender = this.messageBody[0];
+            this.messageBody.Remove(this.messageBody[0]);
             if (messageTypeIdentifier == 'S')
             {
-                message = ProcessSMS(id, sender, tokenised);
+                message = ProcessSMS();
             }
             else if (messageTypeIdentifier == 'E')
             {
-                message = ProcessEmail(id, sender, tokenised);
+                message = ProcessEmail();
             }
             else if (messageTypeIdentifier == 'T')
             {
-                message = ProcessTweet(id, sender, tokenised);
+                message = ProcessTweet();
             }
             else {
                 throw new Exception("Invalid message type identifier");
             }
-
-                JsonProcessor.SendToJSon(message);
+            JsonProcessor.SendToJSon(message);
             return message;
         }
-        public static Tweet ProcessTweet(string id, string sender, List<string> body)
-        {
-            Tweet tweet1 = new()
-            {
-                ID = id,
-                Sender = sender
-            };
-            string joined = string.Join(' ', body);
-            List<string> tokenisedonspaces = Helper.TokeniseOnSpaces(joined);
 
-            //Add hashtags to trending list
-            GetHashtags(tokenisedonspaces);
-            //Add mentions to mentions list
-            GetMentions(tokenisedonspaces);
-            //Expand text speak within tweet
-            List<string> ExpandedTextSpeakMessage = ExpandTextSpeak(tokenisedonspaces);
+        // Common method for processing message body
+        private T CreateProcessedMessage<T>(Func<T> createMessageFunc, Action<T> addAdditionalDataFunc) where T : Message {
+            T message = createMessageFunc(); // Create the message object
 
+            string joined = string.Join(' ', this.messageBody);
+            List<string> tokenisedOnSpaces = Helper.TokeniseOnSpaces(joined);
+            List<string> expandedTextMessage = ExpandTextSpeak(tokenisedOnSpaces);
+            string joinedMessage = string.Join(" ", expandedTextMessage);
 
-            string joinedMessage = string.Join(" ", ExpandedTextSpeakMessage);
-            tweet1.MessageText = joinedMessage;
+            message.MessageText = joinedMessage; // Set common message text
 
- 
-            return tweet1;
-        }
-        public static SMS ProcessSMS(string id, string sender, List<string> body)
-        {
-            SMS sms1 = new()
-            {
-                ID = id,
-                Sender = sender
-            };
-            string joined = string.Join(' ', body);
-            List<string> tokenisedonspaces = Helper.TokeniseOnSpaces(joined);
-            List<string> ExpandedTextSpeakMessage = ExpandTextSpeak(tokenisedonspaces);
-            string joinedMessage = string.Join(" ", ExpandedTextSpeakMessage);
-            sms1.MessageText = joinedMessage;
+            addAdditionalDataFunc(message); // Add any specific fields (like subject, sort code)
 
-            return sms1;
+            return message;
         }
 
-        public static Email ProcessEmail(string id, string sender, List<string> body)
-        {
-            // Check if email is a serious incident report and if so, process it in separate function
-            if (body[0].Substring(0, 3) == "SIR")
-            {
-                if (Regex.IsMatch(body[0][4..], @"[0-3][0-9]/[0-1][0-9]/[0-9][0-9]"))
-                {
-                    return ProcessSIR(id, sender, body);
+        public Tweet ProcessTweet() {
+            return CreateProcessedMessage<Tweet>(
+                () => new Tweet { ID = this.id, Sender = this.sender },  // Create Tweet object
+                tweet => {
+                    // Step 3: Specific logic for Tweet
+                    GetHashtags(Helper.TokeniseOnSpaces(tweet.MessageText)); // Process hashtags
+                    GetMentions(Helper.TokeniseOnSpaces(tweet.MessageText)); // Process mentions
+                }
+            );
+        }
+
+        public SMS ProcessSMS() {
+            return CreateProcessedMessage<SMS>(
+                () => new SMS { ID = this.id, Sender = this.sender },  // Create SMS
+                sms => {
+                    // SMS doesn't have additional logic, so no extra action is needed here
+                }
+            );
+        }
+
+        public Email ProcessEmail() {
+            if (this.messageBody[0].Substring(0, 3) == "SIR") {
+                if (Regex.IsMatch(this.messageBody[0][4..], @"[0-3][0-9]/[0-1][0-9]/[0-9][0-9]")) {
+                    return ProcessSIR();
                 }
             }
-            return ProcessNormalEmail(id, sender, body);
+            return ProcessNormalEmail();
         }
 
-        public static Email ProcessNormalEmail(string id, string sender, List<string> body)
-        {
-            Email email1 = new()
-            {
-                ID = id,
-                Sender = sender,
-                Subject = body[0]
-            };
-
-            //Sender and subject no longer required
-            body.RemoveRange(0, 1);
-
-            string joined = string.Join(' ', body);
-            List<string> tokenisedOnSpaces = Helper.TokeniseOnSpaces(joined);
-            List<string> messageListWithURLsQuarantined = QuarantineURLs(tokenisedOnSpaces);
-            string messageWithURLsQuarantined = string.Join(" ", messageListWithURLsQuarantined);
-            email1.MessageText = messageWithURLsQuarantined;
-
-            return email1;
+        public Email ProcessNormalEmail() {
+            return CreateProcessedMessage<Email>(
+                () => new Email { ID = this.id, Sender = this.sender, Subject = this.messageBody[0] },  // Create Email
+                email => {
+                    email.Subject = this.messageBody[0];
+                    this.messageBody.RemoveRange(0, 1); // Remove the subject
+                    List<string> tokenisedOnSpaces = Helper.TokeniseOnSpaces(string.Join(" ", this.messageBody));
+                    List<string> quarantinedMessage = QuarantineURLs(tokenisedOnSpaces);
+                    email.MessageText = string.Join(" ", quarantinedMessage);
+                }
+            );
         }
-        public static SIREmail ProcessSIR(string id, string sender, List<string> body)
-        {
-            SIREmail sirEmail1 = new()
-            {
-                ID = id,
-                Sender = sender,
-                Subject = body[0],
-                SortCode = body[1],
-                IncidentNature = body[2]
-            };
 
-            SIRList.Add(sirEmail1.SortCode + " " + sirEmail1.IncidentNature);
-            body.RemoveRange(0, 3);
-
-            string joined = string.Join(' ', body);
-            List<string> tokenisedOnSpaces = Helper.TokeniseOnSpaces(joined);
-            List<string> messageListWithURLsQuarantined = QuarantineURLs(tokenisedOnSpaces);
-            string messageWithURLsQuarantined = string.Join(" ", messageListWithURLsQuarantined);
-            sirEmail1.MessageText = messageWithURLsQuarantined;
-
-            return sirEmail1;
+        public SIREmail ProcessSIR() {
+            return CreateProcessedMessage<SIREmail>(
+                () => new SIREmail { ID = this.id, Sender = this.sender, Subject = this.messageBody[0] },  // Create SIREmail
+                sirEmail => {
+                    sirEmail.SortCode = this.messageBody[1];
+                    sirEmail.IncidentNature = this.messageBody[2];
+                    SIRList.Add(sirEmail.SortCode + " " + sirEmail.IncidentNature);
+                    this.messageBody.RemoveRange(0, 3); // Remove the SIR-specific fields
+                    List<string> tokenisedOnSpaces = Helper.TokeniseOnSpaces(string.Join(" ", this.messageBody));
+                    List<string> quarantinedMessage = QuarantineURLs(tokenisedOnSpaces);
+                    sirEmail.MessageText = string.Join(" ", quarantinedMessage);
+                }
+            );
         }
 
         public static List<string> ExpandTextSpeak(List<string> message)
@@ -168,7 +148,6 @@ namespace SECoursework.Business
 
         public static void GetHashtags(List<string> message)
         {
-            // Adds hashtags to a dictionary that represents a trending list. If already added, increase number of times mentioned.
             for (int i = 0; i < message.Count; i++)
             {
                 if(message[i].StartsWith("#"))

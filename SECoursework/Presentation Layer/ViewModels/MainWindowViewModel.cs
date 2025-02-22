@@ -91,7 +91,11 @@ namespace SECoursework.Presentation_Layer.ViewModels
                 return;
             }
 
-            Message message = MessageProcessor.ProcessMessage(txtHeader, txtBody);
+            MessageProcessor mp = new MessageProcessor();
+            Message message = mp.ProcessMessage(txtHeader, txtBody);
+            //Message message= new Message();
+            //m1.ProcessMessage(txtHeader, txtBody);
+            // Message message = MessageProcessor.ProcessMessage(txtHeader, txtBody);
             UpdateViewModel(message);
         }
 
@@ -132,7 +136,8 @@ namespace SECoursework.Presentation_Layer.ViewModels
             string body_joined = string.Join("\r\n", body_lines);
             bool inputValidated = InputValidator.ValidateMessage(header, body_joined);
             if (inputValidated) {
-                Message message = MessageProcessor.ProcessMessage(header, body_joined);
+                MessageProcessor m1 = new MessageProcessor();
+                Message message = m1.ProcessMessage(header, body_joined);
                 UpdateViewModel(message);
                 return true;
             }
