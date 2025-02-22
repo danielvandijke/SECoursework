@@ -12,42 +12,45 @@ namespace SECoursework.Business
 {
     internal class MessageProcessor
     {
-        public static List<string> QuarantineList = new List<string>();
-        public static List<string> SIRList = new List<string>();
-        public static Dictionary<string, int> TrendingList = new Dictionary<string, int>();
-        public static List<string> Mentions = new List<string>();
+        public static List<string> QuarantineList = new();
+        public static List<string> SIRList = new();
+        public static Dictionary<string, int> TrendingList = new();
+        public static List<string> Mentions = new();
 
         public static Message ProcessMessage(string header, string body)
         {
             Message message = new Message();
             List<string> tokenised = Helper.TokeniseOnLines(body);
-            if (header[0] == 'S')
+            char messageTypeIdentifier = header[0];
+            string id = header[1..];
+            string sender = tokenised[0];
+            tokenised.Remove(tokenised[0]);
+            if (messageTypeIdentifier == 'S')
             {
-                message = ProcessSMS(header, tokenised);
+                message = ProcessSMS(id, sender, tokenised);
             }
-            else if (header[0] == 'E')
+            else if (messageTypeIdentifier == 'E')
             {
-                message = ProcessEmail(header, tokenised);
+                message = ProcessEmail(id, sender, tokenised);
             }
-            else
+            else if (messageTypeIdentifier == 'T')
             {
-                message = ProcessTweet(header, tokenised);
+                message = ProcessTweet(id, sender, tokenised);
+            }
+            else {
+                throw new Exception("Invalid message type identifier");
             }
 
-            JsonProcessor.SendToJSon(message);
+                JsonProcessor.SendToJSon(message);
             return message;
         }
-        public static Tweet ProcessTweet(string header, List<string> body)
+        public static Tweet ProcessTweet(string id, string sender, List<string> body)
         {
             Tweet tweet1 = new()
             {
-                ID = header[1..],
-                Sender = body[0]
+                ID = id,
+                Sender = sender
             };
-
-            body.Remove(body[0]);
-
-            
             string joined = string.Join(' ', body);
             List<string> tokenisedonspaces = Helper.TokeniseOnSpaces(joined);
 
@@ -65,16 +68,13 @@ namespace SECoursework.Business
  
             return tweet1;
         }
-        public static SMS ProcessSMS(string header, List<string> body)
+        public static SMS ProcessSMS(string id, string sender, List<string> body)
         {
             SMS sms1 = new()
             {
-                ID = header[1..],
-                Sender = body[0]
+                ID = id,
+                Sender = sender
             };
-
-            //Get message text with expanded text speak
-            body.Remove(body[0]);
             string joined = string.Join(' ', body);
             List<string> tokenisedonspaces = Helper.TokeniseOnSpaces(joined);
             List<string> ExpandedTextSpeakMessage = ExpandTextSpeak(tokenisedonspaces);
@@ -84,30 +84,30 @@ namespace SECoursework.Business
             return sms1;
         }
 
-        public static Email ProcessEmail(string header, List<string> body)
+        public static Email ProcessEmail(string id, string sender, List<string> body)
         {
             // Check if email is a serious incident report and if so, process it in separate function
-            if (body[1].Substring(0, 3) == "SIR")
+            if (body[0].Substring(0, 3) == "SIR")
             {
-                if (Regex.IsMatch(body[1][4..], @"[0-3][0-9]/[0-1][0-9]/[0-9][0-9]"))
+                if (Regex.IsMatch(body[0][4..], @"[0-3][0-9]/[0-1][0-9]/[0-9][0-9]"))
                 {
-                    return ProcessSIR(header, body);
+                    return ProcessSIR(id, sender, body);
                 }
             }
-            return ProcessNormalEmail(header, body);
+            return ProcessNormalEmail(id, sender, body);
         }
 
-        public static Email ProcessNormalEmail(string header, List<string> body)
+        public static Email ProcessNormalEmail(string id, string sender, List<string> body)
         {
             Email email1 = new()
             {
-                ID = header[1..],
-                Sender = body[0],
-                Subject = body[1]
+                ID = id,
+                Sender = sender,
+                Subject = body[0]
             };
 
             //Sender and subject no longer required
-            body.RemoveRange(0, 2);
+            body.RemoveRange(0, 1);
 
             string joined = string.Join(' ', body);
             List<string> tokenisedOnSpaces = Helper.TokeniseOnSpaces(joined);
@@ -117,24 +117,20 @@ namespace SECoursework.Business
 
             return email1;
         }
-        public static SIREmail ProcessSIR(string header, List<string> body)
+        public static SIREmail ProcessSIR(string id, string sender, List<string> body)
         {
             SIREmail sirEmail1 = new()
             {
-                ID = header[1..],
-                Sender = body[0],
-                Subject = body[1],
-                SortCode = body[2],
-                IncidentNature = body[3]
+                ID = id,
+                Sender = sender,
+                Subject = body[0],
+                SortCode = body[1],
+                IncidentNature = body[2]
             };
 
-            //Add sort code and nature of incident to SIR list
             SIRList.Add(sirEmail1.SortCode + " " + sirEmail1.IncidentNature);
+            body.RemoveRange(0, 3);
 
-            //get rid of the above properties from body
-            body.RemoveRange(0, 4);
-
-            //Get message text with URLs quarantined
             string joined = string.Join(' ', body);
             List<string> tokenisedOnSpaces = Helper.TokeniseOnSpaces(joined);
             List<string> messageListWithURLsQuarantined = QuarantineURLs(tokenisedOnSpaces);

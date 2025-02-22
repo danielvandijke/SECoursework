@@ -13,19 +13,20 @@ namespace SECoursework.Data_Layer
 {
     internal class JsonProcessor
     {
+        private static readonly string FilePath = Path.Combine(Directory.GetCurrentDirectory(), @"..\..\..\Data Layer\message_list.json");
 
         public static void SendToJSon(Message message)
         {
-            List<Message> messages = new List<Message>();
+            List<Message> messages = new();
             messages = DeSerializeJson();
             messages.Add(message);
             string json = JsonConvert.SerializeObject(messages, Formatting.Indented);
-            File.WriteAllText(@"C:\Users\danie\OneDrive\Desktop\SECoursework\SECoursework\Data Layer\message_list.json", json);
+            File.WriteAllText(FilePath, json);
         }
 
         public static List<Message> DeSerializeJson()
         {
-            string json = File.ReadAllText(@"C:\Users\danie\OneDrive\Desktop\SECoursework\SECoursework\Data Layer\message_list.json");
+            string json = File.ReadAllText(FilePath);
             List<Message> messages;
             if(JsonConvert.DeserializeObject<List<Message>>(json) == null)
             {

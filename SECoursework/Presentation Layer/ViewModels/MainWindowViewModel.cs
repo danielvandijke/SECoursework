@@ -153,7 +153,6 @@ namespace SECoursework.Presentation_Layer.ViewModels
         
         private void UpdateViewModel(Message message)
         {
-            //update lists
             QuarantineList = new ObservableCollection<string>(MessageProcessor.GetQuarantineList());
             TrendingList = new ObservableCollection<string>(MessageProcessor.GetTrending());
             SIRList = new ObservableCollection<string>(MessageProcessor.GetSIRList());

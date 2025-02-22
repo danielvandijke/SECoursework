@@ -10,9 +10,10 @@ namespace SECoursework.Data_Layer
 {
     internal class TextSpeakProcessor
     {
+        private static readonly string filePath = Path.Combine(Directory.GetCurrentDirectory(), @"..\..\..\Data Layer\textwords.csv");
         public static Dictionary<string, string> GetTextSpeak()
         {
-            var dict = File.ReadLines("C:\\Users\\danie\\OneDrive\\Desktop\\SECoursework\\SECoursework\\Data Layer\\textwords.csv").Select(line => line.Split(new[] {','}, 2)).ToDictionary(line => line[0], line => line[1]);
+            var dict = File.ReadLines(filePath).Select(line => line.Split(new[] {','}, 2)).ToDictionary(line => line[0], line => line[1]);
             return dict;
         }
     }
